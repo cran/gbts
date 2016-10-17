@@ -7,7 +7,7 @@
 \title{Hyperparameter Search for Gradient Boosted Trees}
 \usage{
 gbts(x, y, w = rep(1, nrow(x)), nitr = 100, nlhs = floor(nitr/2),
-  nprd = 1000, kfld = 10, nwrk = 2, srch = c("active", "random"),
+  nprd = 1000, kfld = 10, nwrk = 2, srch = c("bayes", "random"),
   rpkg = c("gbm", "xgb"), pfmc = c("acc", "dev", "ks", "auc", "roc", "mse",
   "rsq", "mae"), cdfx = "fpr", cdfy = "tpr", cutoff = 0.5,
   max_depth_range = c(2, 10), leaf_size_range = c(10, 200),
@@ -31,7 +31,7 @@ values.}
 
 \item{nlhs}{an integer of the number of Latin Hypercube samples (each sample
 is a combination of hyperparameter values) used to generate the initial
-performance model. This used for active learning only. Random search
+performance model. This is used for Bayesian optimization only. Random search
 ignores this argument.}
 
 \item{nprd}{an integer of the number of samples (each sample is a combination
@@ -45,17 +45,15 @@ each iteration.}
 used. If \code{nwrk} is less than the number of available cores on the
 machine, it uses all available cores.}
 
-\item{srch}{a character indicating the search method. Setting
-\code{srch="active"} uses active learning (default) which iteratively selects
-hyperparameters with the best expected improvement in model performance.
-Setting \code{srch="random"} uses random search which selects hyperparameters
-uniformly at random.}
+\item{srch}{a character indicating the search method such that
+\code{srch="bayes"} uses Bayesian optimization (default), and
+\code{srch="random"} uses random search.}
 
 \item{rpkg}{a character indicating which package of GBT to use. Setting
 \code{rpkg="gbm"} uses the \code{gbm} R package (default). Setting
 \code{rpkg="xgb"} uses the \code{xgboost} R package. Note that with
-\code{gbm}, predictors can be categorical represented as factors, unlike
-using \code{xgboost} which requires all predictors to be numeric.}
+\code{gbm}, predictors can be categorical represented as factors, as opposed
+to \code{xgboost} which requires all predictors to be numeric.}
 
 \item{pfmc}{a character of the performance metric to optimize.
 For binary classification, \code{pfmc} accepts:
@@ -101,14 +99,14 @@ Supported values are
 }}
 
 \item{cutoff}{a value in [0, 1] used for binary classification. If
-\code{pfmc="acc"}, negative prediction has predicted probability <=
-\code{cutoff} and positive prediction has predicted probability >
-\code{cutoff}. If \code{pfmc="roc"}, then this is used in conjunction with
-the \code{cdfx} and \code{cdfy} arguments (described above) which specify the
-cumulative distributions for the x-axis and y-axis of the ROC curve,
-respectively. For example, if the desired performance metric is the true
-positive rate at the 5\% false positive rate, specify \code{pfmc="roc"},
-\code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{cutoff=0.05}.}
+\code{pfmc="acc"}, instances with probabilities <= \code{cutoff} are
+predicted as negative, and those with probabilities > \code{cutoff} are
+predicted as positive. If \code{pfmc="roc"}, \code{cutoff} can be used in
+conjunction with the \code{cdfx} and \code{cdfy} arguments (described above)
+to specify the operating point. For example, if the desired performance
+metric is the true positive rate at the 5\% false positive rate, specify
+\code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and
+\code{cutoff=0.05}.}
 
 \item{max_depth_range}{a vector of the minimum and maximum values for:
 maximum tree depth.}
@@ -155,22 +153,32 @@ documentation for details.
 }
 }
 \description{
-This package provides two iterative methods for optimizing hyperparameters
-for Gradient Boosted Trees (GBT) on binary classification and regression
-problems:
+This package provides hyperparameter optimization for Gradient Boosted Trees
+(GBT) on binary classification and regression problems. The current version
+provides two optimization methods:
+\itemize{
+\item Bayesian optimization:
 \enumerate{
-\item Active Learning: hyperparameters with the best expected improvement in
-model performance are selected in each iteration.
-\item Random Search: hyperparameters are selected uniformly at random in each
+\item A probabilistic model is built to capture the relationship between
+hyperparameters and their predictive performance.
+\item Select the most predictive hyperparameter values (as suggested by
+the probabilistic model) to try in the next iteration.
+\item Train a GBT with the selected hyperparameter settings and compute its
+out-of-sample predictive performance.
+\item Update the probabilistic model with the new performance measure. Go
+back to step 2 and repeat.
+}
+\item Random search: hyperparameters are selected uniformly at random in each
 iteration.
 }
 In both approaches, each iteration uses cross-validation (CV) to develop GBTs
-with the selected hyperparameters on the training datasets followed by
-performance assessment on the validation datasets. The final result is a set
-of CV models having the best average validation performance. It does not
-re-run a new GBT with the best hyperparameter values on the full training
-data. Prediction is computed as the average of the predictions from the CV
-models.
+with the selected hyperparameter values on the training datasets followed by
+performance assessment on the validation datasets. For Bayesian optimization,
+validation performance is used to update the model of the relationship betwen
+hyperparameters and performance. The final result is a set of CV models
+having the best average validation performance. It does not re-run a new GBT
+with the best hyperparameter values on the full training data. Prediction is
+computed as the average of the predictions from the CV models.
 }
 \examples{
 \dontrun{

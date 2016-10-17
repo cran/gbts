@@ -52,7 +52,19 @@ gbt_fit <- function(x, y, w, max_depth, leaf_size, bagn_frac, coln_frac,
 # Predict with Gradient Boosted Trees
 gbt_predict <- function(model, x, rpkg, type = "response") {
   if (rpkg[1] == "gbm") {
-    pred <- gbm::predict.gbm(model, x, model$n.trees, type = type)
+    func <- tryCatch(utils::getFromNamespace("predict", ns = "gbm"),
+                     error = function(e) { NULL })
+    if (is.null(func)) {
+      func <- tryCatch(utils::getFromNamespace("predict.gbm", ns = "gbm"),
+                       error = function(e) { NULL })
+      if (is.null(func)) {
+        stop("Predict function for 'gbm' not found.")
+      } else {
+        pred <- func(model, x, model$n.trees, type = type)
+      }
+    } else {
+      pred <- func(model, x, model$n.trees, type = type)
+    }
   } else if (rpkg[1] == "xgb") {
     pred <- xgboost::predict(model, as.matrix(x))
   } else {

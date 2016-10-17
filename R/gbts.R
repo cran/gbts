@@ -1,21 +1,31 @@
 #' Hyperparameter Search for Gradient Boosted Trees
 #'
-#' This package provides two iterative methods for optimizing hyperparameters
-#' for Gradient Boosted Trees (GBT) on binary classification and regression
-#' problems:
+#' This package provides hyperparameter optimization for Gradient Boosted Trees
+#' (GBT) on binary classification and regression problems. The current version
+#' provides two optimization methods:
+#' \itemize{
+#' \item Bayesian optimization:
 #' \enumerate{
-#' \item Active Learning: hyperparameters with the best expected improvement in
-#' model performance are selected in each iteration.
-#' \item Random Search: hyperparameters are selected uniformly at random in each
+#' \item A probabilistic model is built to capture the relationship between
+#' hyperparameters and their predictive performance.
+#' \item Select the most predictive hyperparameter values (as suggested by
+#' the probabilistic model) to try in the next iteration.
+#' \item Train a GBT with the selected hyperparameter settings and compute its
+#' out-of-sample predictive performance.
+#' \item Update the probabilistic model with the new performance measure. Go
+#' back to step 2 and repeat.
+#' }
+#' \item Random search: hyperparameters are selected uniformly at random in each
 #' iteration.
 #' }
 #' In both approaches, each iteration uses cross-validation (CV) to develop GBTs
-#' with the selected hyperparameters on the training datasets followed by
-#' performance assessment on the validation datasets. The final result is a set
-#' of CV models having the best average validation performance. It does not
-#' re-run a new GBT with the best hyperparameter values on the full training
-#' data. Prediction is computed as the average of the predictions from the CV
-#' models.
+#' with the selected hyperparameter values on the training datasets followed by
+#' performance assessment on the validation datasets. For Bayesian optimization,
+#' validation performance is used to update the model of the relationship betwen
+#' hyperparameters and performance. The final result is a set of CV models
+#' having the best average validation performance. It does not re-run a new GBT
+#' with the best hyperparameter values on the full training data. Prediction is
+#' computed as the average of the predictions from the CV models.
 #'
 #' @docType package
 #' @name gbts
@@ -31,7 +41,7 @@ NULL
 #' @param nitr an integer of the number of iterations for the optimization.
 #' @param nlhs an integer of the number of Latin Hypercube samples (each sample
 #' is a combination of hyperparameter values) used to generate the initial
-#' performance model. This used for active learning only. Random search
+#' performance model. This is used for Bayesian optimization only. Random search
 #' ignores this argument.
 #' @param nprd an integer of the number of samples (each sample is a combination
 #' of hyperparameter values) at which performance prediction is made, and the
@@ -41,16 +51,14 @@ NULL
 #' @param nwrk an integer of the number of computing workers (CPU cores) to be
 #' used. If \code{nwrk} is less than the number of available cores on the
 #' machine, it uses all available cores.
-#' @param srch a character indicating the search method. Setting
-#' \code{srch="active"} uses active learning (default) which iteratively selects
-#' hyperparameters with the best expected improvement in model performance.
-#' Setting \code{srch="random"} uses random search which selects hyperparameters
-#' uniformly at random.
+#' @param srch a character indicating the search method such that
+#' \code{srch="bayes"} uses Bayesian optimization (default), and
+#' \code{srch="random"} uses random search.
 #' @param rpkg a character indicating which package of GBT to use. Setting
 #' \code{rpkg="gbm"} uses the \code{gbm} R package (default). Setting
 #' \code{rpkg="xgb"} uses the \code{xgboost} R package. Note that with
-#' \code{gbm}, predictors can be categorical represented as factors, unlike
-#' using \code{xgboost} which requires all predictors to be numeric.
+#' \code{gbm}, predictors can be categorical represented as factors, as opposed
+#' to \code{xgboost} which requires all predictors to be numeric.
 #' @param pfmc a character of the performance metric to optimize.
 #' For binary classification, \code{pfmc} accepts:
 #' \itemize{
@@ -92,14 +100,14 @@ NULL
 #' \item \code{"tnr"}: true negative rate.
 #' }
 #' @param cutoff a value in [0, 1] used for binary classification. If
-#' \code{pfmc="acc"}, negative prediction has predicted probability <=
-#' \code{cutoff} and positive prediction has predicted probability >
-#' \code{cutoff}. If \code{pfmc="roc"}, then this is used in conjunction with
-#' the \code{cdfx} and \code{cdfy} arguments (described above) which specify the
-#' cumulative distributions for the x-axis and y-axis of the ROC curve,
-#' respectively. For example, if the desired performance metric is the true
-#' positive rate at the 5\% false positive rate, specify \code{pfmc="roc"},
-#' \code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{cutoff=0.05}.
+#' \code{pfmc="acc"}, instances with probabilities <= \code{cutoff} are
+#' predicted as negative, and those with probabilities > \code{cutoff} are
+#' predicted as positive. If \code{pfmc="roc"}, \code{cutoff} can be used in
+#' conjunction with the \code{cdfx} and \code{cdfy} arguments (described above)
+#' to specify the operating point. For example, if the desired performance
+#' metric is the true positive rate at the 5\% false positive rate, specify
+#' \code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and
+#' \code{cutoff=0.05}.
 #' @param max_depth_range a vector of the minimum and maximum values for:
 #' maximum tree depth.
 #' @param leaf_size_range a vector of the minimum and maximum values for:
@@ -191,7 +199,7 @@ gbts <- function(x, y,
                  nprd = 1000,
                  kfld = 10,
                  nwrk = 2,
-                 srch = c("active", "random"),
+                 srch = c("bayes", "random"),
                  rpkg = c("gbm", "xgb"),
                  pfmc = c("acc", "dev", "ks", "auc", "roc", "mse", "rsq", "mae"),
                  cdfx = "fpr",
@@ -216,7 +224,7 @@ gbts <- function(x, y,
   if (nprd < 1 || !isint(nprd)) { stop("'nprd' < 1 or is not an integer.") }
   if (kfld < 1 || !isint(kfld)) { stop("'kfld' < 1 or is not an integer.") }
   if (nwrk < 1 || !isint(nwrk)) { stop("'nwrk' < 1 or is not an integer.") }
-  if (!(srch[1] %in% c("active", "random"))) { stop("Invalid 'srch'.") }
+  if (!(srch[1] %in% c("bayes", "active", "random"))) { stop("Invalid 'srch'.") }
   if (!(rpkg[1] %in% c("gbm", "xgb"))) { stop("Invalid 'rpkg'.") }
   if (rpkg[1] == "xgb" && length(which(unlist(lapply(x, is.factor)))) > 0) {
     stop("Cannot use 'xgb' because 'x' has factor(s).")
@@ -318,7 +326,7 @@ gbts <- function(x, y,
   if (length(which(sp_idx)) == 0) { stop("All hyperparameters are fixed.") }
 
   # Propose hyperparameters
-  if (srch[1] == "active") {
+  if (srch[1] %in% c("bayes", "active")) {
     params <- propose_lhs_params(nlhs, max_depth_range,
                                  leaf_size_range, bagn_frac_range,
                                  coln_frac_range, shrinkage_range,
@@ -356,7 +364,7 @@ gbts <- function(x, y,
   set.seed(1)
   for (trial_idx in 1:nitr) {
     trial_time <- Sys.time()
-    if (srch[1] == "active" && trial_idx > nlhs) {
+    if (srch[1] %in% c("bayes", "active") && trial_idx > nlhs) {
       # Propose candidate hyperparameters around the current best setting
       Xs <- propose_local_params(nprd, params, best_idx,
                                  max_depth_range = max_depth_range,
@@ -448,13 +456,13 @@ gbts <- function(x, y,
     }
 
     # Save the selected hyperparameters
-    if (srch[1] == "active" && trial_idx > nlhs) {
+    if (srch[1] %in% c("bayes", "active") && trial_idx > nlhs) {
       params[trial_idx, ] <- c(max_depth, leaf_size, bagn_frac, coln_frac,
                                shrinkage, num_trees, scl_pos_w)
     }
 
     # Update modeling for performance
-    if (srch[1] == "active" && trial_idx >= nlhs) {
+    if (srch[1] %in% c("bayes", "active") && trial_idx >= nlhs) {
       perf_fits <- foreach::foreach(j = 1:kfld, .options.RNG = 456) %dorng% {
         Y <- perf_val_cv[, j]
         perf_data <- data.frame(Y, params[, sp_idx])

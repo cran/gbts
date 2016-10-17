@@ -3,7 +3,7 @@
 Package: gbts
 =============
 
-An implementation of hyperparameter optimization for Gradient Boosted Trees on binary classification and regression problems. The current version provides two optimization methods: active learning and random search.
+An implementation of hyperparameter optimization for Gradient Boosted Trees on binary classification and regression problems. The current version provides two optimization methods: Bayesian optimization and random search.
 
 Example
 =======
