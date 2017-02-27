@@ -1,3 +1,15 @@
+# gbts 1.2.0
+
+* Implemented ensemble selection to construct an ensemble of models in the 
+output of gbts().
+
+* Revised the API of gbts() to simplify the specification of minimum and maximum 
+values of hyperparameters.
+
+* Improved the display of optimization progress.
+
+* Terminated support for the R package "xgboost".
+
 # gbts 1.0.1
 
 * Modified access to gbm predict() to be compatible with the current and next 

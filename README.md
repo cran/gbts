@@ -3,7 +3,7 @@
 Package: gbts
 =============
 
-An implementation of hyperparameter optimization for Gradient Boosted Trees on binary classification and regression problems. The current version provides two optimization methods: Bayesian optimization and random search.
+An implementation of hyperparameter optimization for Gradient Boosted Trees on binary classification and regression problems. The current version supports two optimization methods: Bayesian optimization and random search. Instead of returning the single best model, the final output is an ensemble of Gradient Boosted Trees constructed via the method of ensemble selection.
 
 Example
 =======
@@ -23,10 +23,10 @@ pred_idx <- german_credit$pred_idx
 model <- gbts(train[, pred_idx], train[, target_idx], nitr = 200, pfmc = "auc")
 
 # Predict on test data
-prob_test <- predict(model, test[, pred_idx])
+yhat_test <- predict(model, test[, pred_idx])
 
 # Compute AUC on test data
-comperf(test[, target_idx], prob_test, pfmc = "auc")
+comperf(test[, target_idx], yhat_test, pfmc = "auc")
 ```
 
 Regression
@@ -44,10 +44,10 @@ pred_idx <- boston_housing$pred_idx
 model <- gbts(train[, pred_idx], train[, target_idx], nitr = 200, pfmc = "mse")
 
 # Predict on test data
-prob_test <- predict(model, test[, pred_idx])
+yhat_test <- predict(model, test[, pred_idx])
 
 # Compute MSE on test data
-comperf(test[, target_idx], prob_test, pfmc = "mse")
+comperf(test[, target_idx], yhat_test, pfmc = "mse")
 ```
 
 Installation

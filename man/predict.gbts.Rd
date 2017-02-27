@@ -2,17 +2,17 @@
 % Please edit documentation in R/gbts.R
 \name{predict.gbts}
 \alias{predict.gbts}
-\title{Predict method for optimized Gradient Boosted Trees}
+\title{Predict method for ensemble of Gradient Boosted Trees}
 \usage{
 \method{predict}{gbts}(object, x, nwrk = 2, ...)
 }
 \arguments{
 \item{object}{a model object returned from \code{\link{gbts}}.}
 
-\item{x}{a data.frame of predictors. It has to follow the same format and
-restrictions as the training dataset that generated the model.}
+\item{x}{a data.frame of predictors. It must follow the same format as the
+training dataset on which the model \code{object} is developed.}
 
-\item{nwrk}{an integer of the number of computing cores to be used. If
+\item{nwrk}{an integer of the number of computing workers to be used. If
 \code{nwrk} is less than the number of available cores on the machine, it
 uses all available cores.}
 
@@ -23,11 +23,9 @@ A numeric vector of predictions. In the case of binary classification,
 predictions are probabilities.
 }
 \description{
-This function generates predictions for a given dataset using the returned
-object from \code{\link{gbts}}. It first generates a set of predictions
-for each cross-validation model, and then averaging them on the log-odds
-scale (for binary classification) or on the response scale (for regression)
-to produce the final prediction.
+This function generates predictions by weighted averaging the predictions
+from each model in the ensemble returned from \code{\link{gbts}}. Weighted
+average is computed on the log-odds scale for binary classification.
 }
 \author{
 Waley W. J. Liang <\email{wliang10@gmail.com}>

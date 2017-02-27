@@ -5,7 +5,7 @@
 \title{Compute model performance}
 \usage{
 comperf(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
-  cdfy = "tpr", cutoff = 0.5)
+  cdfy = "tpr", dspt = 0.5)
 }
 \arguments{
 \item{y}{a vector of numeric response values.}
@@ -14,55 +14,52 @@ comperf(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
 
 \item{w}{an optional vector of observation weights.}
 
-\item{pfmc}{a character of the performance metric to be computed.
-For binary classification, \code{pfmc} accepts:
+\item{pfmc}{a character of the performance metric. For binary classification,
+\code{pfmc} accepts:
 \itemize{
-\item \code{"acc"}: accuracy.
-\item \code{"dev"}: deviance.
-\item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic.
-\item \code{"auc"}: area under the ROC curve. The default ROC curve is given
-by true positive rate (on the y-axis) vs. false positive rate (on the x-axis).
-A different curve can be obtained by setting the \code{cdfx} and \code{cdfy}
-arguments described below.
-\item \code{"roc"}: ROC curve given by true positive rate vs. false positive
-rate (default). A different curve can be obtained by setting the \code{cdfx}
-and \code{cdfy} arguments described below. If input to the argument
-\code{cutoff} is missing (default), the return value is a list of two
-components \code{x} and \code{y} representing the ROC curve. Otherwise, the
-return value is a single or a vector of evaluation(s) of the ROC curve at the
-\code{cutoff}.
+\item \code{"acc"}: accuracy
+\item \code{"dev"}: deviance
+\item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic
+\item \code{"auc"}: area under the ROC curve. Use the \code{cdfx} and
+\code{cdfy} arguments to specify the cumulative distributions for the x-axis
+and y-axis of the ROC curve, respectively. The default ROC curve is given by
+true positive rate (y-axis) vs. false positive rate (x-axis).
+\item \code{"roc"}: rate on the y-axis of the ROC curve at a particular
+decision point (threshold) on the x-axis specified by the \code{dspt}
+argument. For example, if the desired performance metric is true positive
+rate at the 5\% false positive rate, specify \code{pfmc="roc"},
+\code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.
 }
 For regression, \code{pfmc} accepts:
 \itemize{
-\item \code{"mse"}: mean squared error.
-\item \code{"mae"}: mean absolute error.
-\item \code{"rsq"}: r-squared (coefficient of determination).
+\item \code{"mse"}: mean squared error
+\item \code{"mae"}: mean absolute error
+\item \code{"rsq"}: r-squared (coefficient of determination)
 }}
 
 \item{cdfx}{a character of the cumulative distribution for the x-axis.
 Supported values are
 \itemize{
-\item \code{"fpr"}: false positive rate.
-\item \code{"fnr"}: false negative rate.
-\item \code{"rpp"}: rate of positive prediction.
+\item \code{"fpr"}: false positive rate
+\item \code{"fnr"}: false negative rate
+\item \code{"rpp"}: rate of positive prediction
 }}
 
 \item{cdfy}{a character of the cumulative distribution for the y-axis.
 Supported values are
 \itemize{
-\item \code{"tpr"}: true positive rate.
-\item \code{"tnr"}: true negative rate.
+\item \code{"tpr"}: true positive rate
+\item \code{"tnr"}: true negative rate
 }}
 
-\item{cutoff}{a value in [0, 1] used for binary classification. If
-\code{pfmc="acc"}, negative prediction has predicted probability <=
-\code{cutoff} and positive prediction has predicted probability >
-\code{cutoff}. If \code{pfmc="roc"}, then this is used in conjunction with
-the \code{cdfx} and \code{cdfy} arguments (described above) which specify the
-cumulative distributions for the x-axis and y-axis of the ROC curve. For
-example, if the desired performance metric is the true positive rate at the
-5\% false positive rate, specify \code{pfmc="roc"}, \code{cdfx="fpr"},
-\code{cdfy="tpr"}, and \code{cutoff=0.05}.}
+\item{dspt}{a decision point (threshold) in [0, 1] for binary classification.
+If \code{pfmc="acc"}, instances with probabilities <= \code{dspt} are
+predicted as negative, and those with probabilities > \code{dspt} are
+predicted as positive. If \code{pfmc="roc"}, \code{dspt} is a threhold on the
+x-axis of the ROC curve such that the corresponding value on the y-axis is
+used as the performance metric. For example, if the desired performance
+metric is the true positive rate at the 5\% false positive rate, specify
+\code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.}
 }
 \value{
 A single or a vector of numeric values of model performance, or a

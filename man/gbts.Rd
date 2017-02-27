@@ -6,179 +6,186 @@
 \alias{gbts-package}
 \title{Hyperparameter Search for Gradient Boosted Trees}
 \usage{
-gbts(x, y, w = rep(1, nrow(x)), nitr = 100, nlhs = floor(nitr/2),
-  nprd = 1000, kfld = 10, nwrk = 2, srch = c("bayes", "random"),
-  rpkg = c("gbm", "xgb"), pfmc = c("acc", "dev", "ks", "auc", "roc", "mse",
-  "rsq", "mae"), cdfx = "fpr", cdfy = "tpr", cutoff = 0.5,
-  max_depth_range = c(2, 10), leaf_size_range = c(10, 200),
-  bagn_frac_range = c(0.1, 1), coln_frac_range = c(0.1, 1),
-  shrinkage_range = c(0.01, 0.1), num_trees_range = c(50, 1000),
-  scl_pos_w_range = c(1, 10), print_progress = TRUE)
+gbts(x, y, w = rep(1, nrow(x)), nitr = 200, nlhs = floor(nitr/2),
+  nprd = 5000, kfld = 10, srch = c("bayes", "random"), nbst = 100,
+  ensz = 100, nwrk = 2, rpkg = c("gbm"), pfmc = c("acc", "dev", "ks",
+  "auc", "roc", "mse", "rsq", "mae"), cdfx = "fpr", cdfy = "tpr",
+  dspt = 0.5, lower = c(2, 10, 0.1, 0.1, 0.01, 50, 1), upper = c(10, 200,
+  1, 1, 0.1, 1000, 10), quiet = FALSE)
 }
 \arguments{
-\item{x}{a data.frame of predictors. If \code{rpkg} (described below) is
-set to \code{"gbm"}, then \code{x} is allowed to have categorical predictors
-represented as factors. Otherwise, all predictors in \code{x} must be numeric.}
+\item{x}{a data.frame of predictors. Categorical predictors represented as
+\code{factors} are accepted.}
 
-\item{y}{a vector of response values.  For binary classification, \code{y}
-must contain values of 0 and 1. There is no need to convert \code{y} to a
+\item{y}{a vector of response values. For binary classification, \code{y}
+must contain values of 0 and 1. It is unnecessary to convert \code{y} to a
 factor variable. For regression, \code{y} must contain at least two unique
 values.}
 
 \item{w}{an optional vector of observation weights.}
 
-\item{nitr}{an integer of the number of iterations for the optimization.}
+\item{nitr}{an integer of the number of hyperparameter settings that are
+sampled. For Bayesian optimization, \code{nitr} must be larger than
+\code{nlhs}.}
 
 \item{nlhs}{an integer of the number of Latin Hypercube samples (each sample
-is a combination of hyperparameter values) used to generate the initial
-performance model. This is used for Bayesian optimization only. Random search
-ignores this argument.}
+is a hyperparameter setting) used to initialize the predictive model of GBT
+performance. This is used for Bayesian optimization only. After
+initialization, sequential search continues for \code{nitr-nlhs} iterations.}
 
-\item{nprd}{an integer of the number of samples (each sample is a combination
-of hyperparameter values) at which performance prediction is made, and the
-best is selected to run the next iteration of GBT.}
+\item{nprd}{an integer of the number of hyperparameter settings at which
+GBT performance is estimated using the predictive model and the best is
+selected to train GBT in the next iteration.}
 
-\item{kfld}{an integer of the number of folds for cross-validation used at
-each iteration.}
+\item{kfld}{an integer of the number of folds for cross-validation.}
 
-\item{nwrk}{an integer of the number of computing workers (CPU cores) to be
-used. If \code{nwrk} is less than the number of available cores on the
-machine, it uses all available cores.}
+\item{srch}{a character of the search method such that \code{srch="bayes"}
+performs Bayesian optimization (default), and \code{srch="random"} performs
+random search.}
 
-\item{srch}{a character indicating the search method such that
-\code{srch="bayes"} uses Bayesian optimization (default), and
-\code{srch="random"} uses random search.}
+\item{nbst}{an integer of the number of bootstrap samples to construct the
+predictive model of GBT performance.}
 
-\item{rpkg}{a character indicating which package of GBT to use. Setting
-\code{rpkg="gbm"} uses the \code{gbm} R package (default). Setting
-\code{rpkg="xgb"} uses the \code{xgboost} R package. Note that with
-\code{gbm}, predictors can be categorical represented as factors, as opposed
-to \code{xgboost} which requires all predictors to be numeric.}
+\item{ensz}{an integer value of the ensemble size - number of GBTs selected
+into the ensemble. Since ensemble selection is done with replacement, the
+number of unique GBTs may be less than \code{ensz}, but the sum of model
+weights always equals \code{ensz}.}
 
-\item{pfmc}{a character of the performance metric to optimize.
+\item{nwrk}{an integer of the number of computing workers to use on a single
+machine.}
+
+\item{rpkg}{a character indicating which R package implementation of GBT to
+use. Currently, only the \code{gbm} R package is supported.}
+
+\item{pfmc}{a character of the performance metric used as the optimization
+objective.
 For binary classification, \code{pfmc} accepts:
 \itemize{
-\item \code{"acc"}: accuracy.
-\item \code{"dev"}: deviance.
-\item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic.
-\item \code{"auc"}: area under the ROC curve. This is used in conjunction
-with the \code{cdfx} and \code{cdfy} arguments (described below) which
-specify the cumulative distributions for the x-axis and y-axis of the ROC
-curve, respectively. The default ROC curve is given by true positive rate
-(on the y-axis) vs. false positive rate (on the x-axis).
-\item \code{"roc"}: this is used when a point on the ROC curve is used as the
-performance metric, such as the true positive rate at a fixed false positive
-rate. This is used in conjunction with the \code{cdfx}, \code{cdfy}, and
-\code{cutoff} arguments which specify the cumulative distributions for the
-x-axis and y-axis of the ROC curve, and the cutoff (value on the x-axis) at
-which evaluation of the ROC curve is obtained as a performance metric. For
-example, if the desired performance metric is the true positive rate at
-the 5\% false positive rate, specify \code{pfmc="roc"}, \code{cdfx="fpr"},
-\code{cdfy="tpr"}, and \code{cutoff=0.05}.
+\item \code{"acc"}: accuracy
+\item \code{"dev"}: deviance
+\item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic
+\item \code{"auc"}: area under the ROC curve. Use the \code{cdfx} and
+\code{cdfy} arguments to specify the cumulative distributions for the x-axis
+and y-axis of the ROC curve, respectively. The default ROC curve is given by
+true positive rate (y-axis) vs. false positive rate (x-axis).
+\item \code{"roc"}: rate on the y-axis of the ROC curve at a particular
+decision point (threshold) on the x-axis specified by the \code{dspt}
+argument. For example, if the desired performance metric is true positive
+rate at the 5\% false positive rate, specify \code{pfmc="roc"},
+\code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.
 }
 For regression, \code{pfmc} accepts:
 \itemize{
-\item \code{"mse"}: mean squared error.
-\item \code{"mae"}: mean absolute error.
-\item \code{"rsq"}: r-squared (coefficient of determination).
+\item \code{"mse"}: mean squared error
+\item \code{"mae"}: mean absolute error
+\item \code{"rsq"}: r-squared (coefficient of determination)
 }}
 
 \item{cdfx}{a character of the cumulative distribution for the x-axis.
 Supported values are
 \itemize{
-\item \code{"fpr"}: false positive rate.
-\item \code{"fnr"}: false negative rate.
-\item \code{"rpp"}: rate of positive prediction.
+\item \code{"fpr"}: false positive rate
+\item \code{"fnr"}: false negative rate
+\item \code{"rpp"}: rate of positive prediction
 }}
 
 \item{cdfy}{a character of the cumulative distribution for the y-axis.
 Supported values are
 \itemize{
-\item \code{"tpr"}: true positive rate.
-\item \code{"tnr"}: true negative rate.
+\item \code{"tpr"}: true positive rate
+\item \code{"tnr"}: true negative rate
 }}
 
-\item{cutoff}{a value in [0, 1] used for binary classification. If
-\code{pfmc="acc"}, instances with probabilities <= \code{cutoff} are
-predicted as negative, and those with probabilities > \code{cutoff} are
-predicted as positive. If \code{pfmc="roc"}, \code{cutoff} can be used in
-conjunction with the \code{cdfx} and \code{cdfy} arguments (described above)
-to specify the operating point. For example, if the desired performance
+\item{dspt}{a decision point (threshold) in [0, 1] for binary classification.
+If \code{pfmc="acc"}, instances with probabilities <= \code{dspt} are
+predicted as negative, and those with probabilities > \code{dspt} are
+predicted as positive. If \code{pfmc="roc"}, \code{dspt} is a threhold on the
+x-axis of the ROC curve such that the corresponding value on the y-axis is
+used as the performance metric. For example, if the desired performance
 metric is the true positive rate at the 5\% false positive rate, specify
-\code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and
-\code{cutoff=0.05}.}
+\code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.}
 
-\item{max_depth_range}{a vector of the minimum and maximum values for:
-maximum tree depth.}
+\item{lower}{a numeric vector containing the minimum values of
+hyperparameters in the following order:
+\itemize{
+\item maximum tree depth
+\item leaf node size
+\item bag fraction
+\item fraction of predictors to try for each split
+\item shrinkage
+\item number of trees
+\item scale of weights for positive cases (for binary classification only)
+}}
 
-\item{leaf_size_range}{a vector of the minimum and maximum values for:
-leaf node size.}
+\item{upper}{a numeric vector containing the maximum values of
+hyperparameters in the order above.}
 
-\item{bagn_frac_range}{a vector of the minimum and maximum values for:
-bag fraction.}
-
-\item{coln_frac_range}{a vector of the minimum and maximum values for:
-fraction of predictors to try for each split.}
-
-\item{shrinkage_range}{a vector of the minimum and maximum values for:
-shrinkage.}
-
-\item{num_trees_range}{a vector of the minimum and maximum values for:
-number of trees.}
-
-\item{scl_pos_w_range}{a vector of the minimum and maximum values for:
-scale of weights for positive cases.}
-
-\item{print_progress}{a logical of whether optimization progress should be
-printed to the console.}
+\item{quiet}{a logical of TRUE turns off the display of optimization progress
+in the console.}
 }
 \value{
 A list of information with the following components:
 \itemize{
-\item \code{best_perf}: a numeric value of the best average validation
-performance.
+\item \code{model}: an ensemble (list) of GBT model(s).
+\item \code{model_weight}: a vector of model weights whose sum equals
+\code{ensz}.
 \item \code{best_idx}: an integer of the iteration index for the best
-average validation performance.
-\item \code{best_model_cv}: a list of cross-validation models with the
-best average validation performance.
-\item \code{perf_val_cv}: a matrix of cross-validation performances where
-the rows correspond to iterations and the columns correspond to CV runs.
-\item \code{params}: a data.frame of hyperparameter values visited during
-the search. Each row of the data.frame comes from an iteration.
-\item \code{total_time}: a numeric value of the total time used in minutes.
+validation performance.
+\item \code{pred_val}: a matrix of cross-validation predictions where
+\code{nrow(pred_val) = nrow(x)} and \code{ncol(pred_val) = nitr}.
+\item \code{perf_val}: a vector of cross-validation performance measures.
+\item \code{param}: a data.frame of hyperparameter settings visited. Each
+row of the data.frame is a single hyperparameter setting.
 \item \code{objective}: a character of the objective function used.
-\item \code{...}: the rest of the output are echo of the input arguments
-(except for \code{x}, \code{y}, and \code{w}). See input argument
-documentation for details.
+\item \code{time} a list of times:
+\itemize{
+\item pproc_time a numeric value of preprocessing time in minutes.
+\item binit_time a numeric value of initialization time in minutes for
+Bayesian optimization.
+\item bsrch_time a numeric value of search time in minutes for
+Bayesian optimization.
+\item rsrch_time a numeric value of random search time in minutes.
+\item enslt_time a numeric value of ensemble selection in minutes.
+\item refit_time a numeric value of refitting (on the full training data)
+time in minutes.
+\item total_time a numeric value of the total time in minutes.
+}
+\item \code{...}: input arguments (excluding \code{x}, \code{y}, and
+\code{w}).
 }
 }
 \description{
-This package provides hyperparameter optimization for Gradient Boosted Trees
-(GBT) on binary classification and regression problems. The current version
-provides two optimization methods:
+This package implements hyperparameter optimization for Gradient Boosted
+Trees (GBT) on binary classification and regression problems. The current
+version provides two optimization methods:
 \itemize{
 \item Bayesian optimization:
 \enumerate{
-\item A probabilistic model is built to capture the relationship between
-hyperparameters and their predictive performance.
-\item Select the most predictive hyperparameter values (as suggested by
-the probabilistic model) to try in the next iteration.
-\item Train a GBT with the selected hyperparameter settings and compute its
-out-of-sample predictive performance.
-\item Update the probabilistic model with the new performance measure. Go
+\item A predictive model is built to capture the relationship between GBT
+hyperparameters and the resulting predictive performance.
+\item Select the best hyperparameter setting (determined by a pre-specified
+criterion) to try in the next iteration.
+\item Train GBT on the selected hyperparameter setting and compute validation
+performance.
+\item Update the predictive model with the new validation performance. Go
 back to step 2 and repeat.
 }
-\item Random search: hyperparameters are selected uniformly at random in each
-iteration.
+\item Random search: each GBT is built with a randomly selected
+hyperparameter setting.
 }
-In both approaches, each iteration uses cross-validation (CV) to develop GBTs
-with the selected hyperparameter values on the training datasets followed by
-performance assessment on the validation datasets. For Bayesian optimization,
-validation performance is used to update the model of the relationship betwen
-hyperparameters and performance. The final result is a set of CV models
-having the best average validation performance. It does not re-run a new GBT
-with the best hyperparameter values on the full training data. Prediction is
-computed as the average of the predictions from the CV models.
+Instead of returning a single GBT in the final output, an ensemble of GBTs
+is produced via the method of ensemble selection. It selects GBTs with
+replacement from a library into the ensemble, and returns the ensemble with
+best validation performance. Model library and validation performance are
+obtained from the hyperparameter search described above, by building GBTs
+with different hyperparameter settings on the training dataset and obtaining
+their performances on the validation dataset, based on cross-validation (CV).
+Since selection from the library is done with replacement, each GBT may be
+selected more than once into the ensemble. This function returns an ensemble
+that contains only the unique GBTs with model weights calculated as the
+number of model duplicates divided by the ensemble size. Each unique GBT in
+the ensemble is re-trained on the full training data. Prediction is computed
+as the weighted average of predictions from the re-trained GBTs.
 }
 \examples{
 \dontrun{
@@ -195,10 +202,10 @@ pred_idx <- german_credit$pred_idx
 model <- gbts(train[, pred_idx], train[, target_idx], nitr = 200, pfmc = "auc")
 
 # Predict on test data
-prob_test <- predict(model, test[, pred_idx])
+yhat_test <- predict(model, test[, pred_idx])
 
 # Compute AUC on test data
-comperf(test[, target_idx], prob_test, pfmc = "auc")
+comperf(test[, target_idx], yhat_test, pfmc = "auc")
 
 
 # Regression
@@ -214,14 +221,20 @@ pred_idx <- boston_housing$pred_idx
 model <- gbts(train[, pred_idx], train[, target_idx], nitr = 200, pfmc = "mse")
 
 # Predict on test data
-prob_test <- predict(model, test[, pred_idx])
+yhat_test <- predict(model, test[, pred_idx])
 
 # Compute MSE on test data
-comperf(test[, target_idx], prob_test, pfmc = "mse")
+comperf(test[, target_idx], yhat_test, pfmc = "mse")
 }
 }
 \author{
 Waley W. J. Liang <\email{wliang10@gmail.com}>
+}
+\references{
+Rich Caruana, Alexandru Niculescu-Mizil, Geoff Crew, and Alex
+Ksikes. 2004. Ensemble selection from libraries of models. In Proceedings of
+the 21st international conference on Machine learning (ICML'04).
+\url{http://www.cs.cornell.edu/~alexn/papers/shotgun.icml04.revised.rev2.pdf}
 }
 \seealso{
 \code{\link{predict.gbts}},

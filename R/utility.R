@@ -6,52 +6,49 @@
 #' @param y a vector of numeric response values.
 #' @param yhat a vector of model predictions.
 #' @param w an optional vector of observation weights.
-#' @param pfmc a character of the performance metric to be computed.
-#' For binary classification, \code{pfmc} accepts:
+#' @param pfmc a character of the performance metric. For binary classification,
+#' \code{pfmc} accepts:
 #' \itemize{
-#' \item \code{"acc"}: accuracy.
-#' \item \code{"dev"}: deviance.
-#' \item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic.
-#' \item \code{"auc"}: area under the ROC curve. The default ROC curve is given
-#' by true positive rate (on the y-axis) vs. false positive rate (on the x-axis).
-#' A different curve can be obtained by setting the \code{cdfx} and \code{cdfy}
-#' arguments described below.
-#' \item \code{"roc"}: ROC curve given by true positive rate vs. false positive
-#' rate (default). A different curve can be obtained by setting the \code{cdfx}
-#' and \code{cdfy} arguments described below. If input to the argument
-#' \code{cutoff} is missing (default), the return value is a list of two
-#' components \code{x} and \code{y} representing the ROC curve. Otherwise, the
-#' return value is a single or a vector of evaluation(s) of the ROC curve at the
-#' \code{cutoff}.
+#' \item \code{"acc"}: accuracy
+#' \item \code{"dev"}: deviance
+#' \item \code{"ks"}: Kolmogorov-Smirnov (KS) statistic
+#' \item \code{"auc"}: area under the ROC curve. Use the \code{cdfx} and
+#' \code{cdfy} arguments to specify the cumulative distributions for the x-axis
+#' and y-axis of the ROC curve, respectively. The default ROC curve is given by
+#' true positive rate (y-axis) vs. false positive rate (x-axis).
+#' \item \code{"roc"}: rate on the y-axis of the ROC curve at a particular
+#' decision point (threshold) on the x-axis specified by the \code{dspt}
+#' argument. For example, if the desired performance metric is true positive
+#' rate at the 5\% false positive rate, specify \code{pfmc="roc"},
+#' \code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.
 #' }
 #' For regression, \code{pfmc} accepts:
 #' \itemize{
-#' \item \code{"mse"}: mean squared error.
-#' \item \code{"mae"}: mean absolute error.
-#' \item \code{"rsq"}: r-squared (coefficient of determination).
+#' \item \code{"mse"}: mean squared error
+#' \item \code{"mae"}: mean absolute error
+#' \item \code{"rsq"}: r-squared (coefficient of determination)
 #' }
 #' @param cdfx a character of the cumulative distribution for the x-axis.
 #' Supported values are
 #' \itemize{
-#' \item \code{"fpr"}: false positive rate.
-#' \item \code{"fnr"}: false negative rate.
-#' \item \code{"rpp"}: rate of positive prediction.
+#' \item \code{"fpr"}: false positive rate
+#' \item \code{"fnr"}: false negative rate
+#' \item \code{"rpp"}: rate of positive prediction
 #' }
 #' @param cdfy a character of the cumulative distribution for the y-axis.
 #' Supported values are
 #' \itemize{
-#' \item \code{"tpr"}: true positive rate.
-#' \item \code{"tnr"}: true negative rate.
+#' \item \code{"tpr"}: true positive rate
+#' \item \code{"tnr"}: true negative rate
 #' }
-#' @param cutoff a value in [0, 1] used for binary classification. If
-#' \code{pfmc="acc"}, negative prediction has predicted probability <=
-#' \code{cutoff} and positive prediction has predicted probability >
-#' \code{cutoff}. If \code{pfmc="roc"}, then this is used in conjunction with
-#' the \code{cdfx} and \code{cdfy} arguments (described above) which specify the
-#' cumulative distributions for the x-axis and y-axis of the ROC curve. For
-#' example, if the desired performance metric is the true positive rate at the
-#' 5\% false positive rate, specify \code{pfmc="roc"}, \code{cdfx="fpr"},
-#' \code{cdfy="tpr"}, and \code{cutoff=0.05}.
+#' @param dspt a decision point (threshold) in [0, 1] for binary classification.
+#' If \code{pfmc="acc"}, instances with probabilities <= \code{dspt} are
+#' predicted as negative, and those with probabilities > \code{dspt} are
+#' predicted as positive. If \code{pfmc="roc"}, \code{dspt} is a threhold on the
+#' x-axis of the ROC curve such that the corresponding value on the y-axis is
+#' used as the performance metric. For example, if the desired performance
+#' metric is the true positive rate at the 5\% false positive rate, specify
+#' \code{pfmc="roc"}, \code{cdfx="fpr"}, \code{cdfy="tpr"}, and \code{dspt=0.05}.
 #' @return A single or a vector of numeric values of model performance, or a
 #' list of two components \code{x} and \code{y} representing the ROC curve.
 #'
@@ -73,7 +70,7 @@
 #'
 #' @export
 comperf <- function(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
-                    cdfy = "tpr", cutoff = 0.5) {
+                    cdfy = "tpr", dspt = 0.5) {
   if (missing(y) || !is.vector(y)) { stop("'y' is missing or not a vector.") }
   if (missing(yhat) || !is.vector(yhat)) { stop("'yhat' is missing or not a vector.") }
   if (length(y) != length(yhat)) { stop("'y' and 'yhat' have different lengths.") }
@@ -94,9 +91,9 @@ comperf <- function(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
     }
 
     # Check operating points
-    if (pfmc == "roc" && !missing(cutoff) && !is.null(cutoff)) {
-      oob <- length(which(cutoff < 0 || cutoff > 1))
-      if (oob > 0) { stop("'cutoff' has invalid value(s).") }
+    if (pfmc == "roc" && !missing(dspt) && !is.null(dspt)) {
+      oob <- length(which(dspt < 0 || dspt > 1))
+      if (oob > 0) { stop("'dspt' has invalid value(s).") }
     }
 
     # Compute metadata
@@ -135,9 +132,9 @@ comperf <- function(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
   if (pfmc %in% c("dev", "ks", "mse", "rsq", "mae")) {
     return(func(mtdt))
   } else if (pfmc == "acc") {
-    return(func(mtdt, cutoff))
+    return(func(mtdt, dspt))
   } else {
-    return(func(mtdt, cdfx, cdfy, cutoff))
+    return(func(mtdt, cdfx, cdfy, dspt))
   }
 }
 
@@ -147,24 +144,25 @@ comperf <- function(y, yhat, w = rep(1, length(y)), pfmc = NULL, cdfx = "fpr",
 # This function computes accuracy for binary classification.
 #
 # @param mtdt a list of metadata used for performance computation.
-# @param cutoff a value in [0, 1]. Negative prediction has predicted probability
-# <= \code{cutoff} and positive prediction has predicted probability > \code{cutoff}.
+# @param dspt a decision point (threshold) in [0, 1]. Instances with
+# probabilities <= \code{dspt} are predicted as negative, and those with
+# probabilities > \code{dspt} are predicted as positive.
 # @return A single or a vector of numeric values (sorted in ascending order of
 # predictions) of accuracy.
 #
 # @author Waley W. J. Liang <\email{wliang10@gmail.com}>
-acc <- function(mtdt, cutoff = 0.5) {
+acc <- function(mtdt, dspt = 0.5) {
   ac <- (max(mtdt$np) + mtdt$nn - mtdt$np) / max(mtdt$na)
   ac <- c(max(mtdt$np) / max(mtdt$na), ac)
   if (min(mtdt$uprd) >= 0 && max(mtdt$uprd) <= 1) {
-    if (max(mtdt$uprd) <= cutoff) { cutoff <- max(mtdt$uprd) } # Predictions = 0
-    else if (min(mtdt$uprd) > cutoff) { cutoff <- 0 } # Predictions = 1
+    if (max(mtdt$uprd) <= dspt) { dspt <- max(mtdt$uprd) } # Predictions = 0
+    else if (min(mtdt$uprd) > dspt) { dspt <- 0 } # Predictions = 1
   } else {
     stop("Prediction(s) outside of [0, 1].")
   }
 
-  # Compute proportion of samples below 'cutoff'
-  rt <- approx(x = c(0, mtdt$uprd), y = mtdt$pa, xout = cutoff, ties = "ordered")$y
+  # Compute proportion of samples below 'dspt'
+  rt <- approx(x = c(0, mtdt$uprd), y = mtdt$pa, xout = dspt, ties = "ordered")$y
 
   # Compute the accuracy
   ac <- approx(x = mtdt$pa, y = ac, xout = rt, ties = "ordered")$y
@@ -213,28 +211,27 @@ ks <- function(mtdt) {
 # @param cdfx a character of the cumulative distribution for the x-axis.
 # Supported values are
 # \itemize{
-# \item \code{"fpr"}: false positive rate.
-# \item \code{"fnr"}: false negative rate.
-# \item \code{"rpp"}: rate of positive prediction.
+# \item \code{"fpr"}: false positive rate
+# \item \code{"fnr"}: false negative rate
+# \item \code{"rpp"}: rate of positive prediction
 # }
 # @param cdfy a character of the cumulative distribution for the y-axis.
 # Supported values are
 # \itemize{
-# \item \code{"tpr"}: true positive rate.
-# \item \code{"tnr"}: true negative rate.
+# \item \code{"tpr"}: true positive rate
+# \item \code{"tnr"}: true negative rate
 # }
-# @param cutoff value(s) in [0, 1] indicating point(s) on the x-axis at which to
+# @param dspt decision point (threshold) in [0, 1] on the x-axis at which to
 # evaluate the ROC curve.
 # @return A ROC curve contained in a list of two components:
 # \itemize{
 # \item \code{x}: a vector of \code{cdfx} values.
 # \item \code{y}: a vector of \code{cdfy} values.
 # }
-# OR a single/vector of evaluation(s) of the ROC curve at the \code{cutoff}
-# (if specified).
+# OR a single/vector of evaluation(s) of the ROC curve at \code{dspt}.
 #
 # @author Waley W. J. Liang <\email{wliang10@gmail.com}>
-roc <- function(mtdt, cdfx = "fpr", cdfy = "tpr", cutoff) {
+roc <- function(mtdt, cdfx = "fpr", cdfy = "tpr", dspt) {
   # Cumulative distribution for the x-axis
   if (cdfx == "fpr") { x <- rev(1 - mtdt$pn) } # In descending order of predictions
   else if (cdfx == "fnr") { x <- mtdt$pp } # In ascending order of predictions
@@ -249,13 +246,13 @@ roc <- function(mtdt, cdfx = "fpr", cdfy = "tpr", cutoff) {
   # Sort y in descending order of predictions
   if (cdfx == "fpr" || cdfx == "rpp") { y <- rev(y) }
 
-  if (missing(cutoff) || is.null(cutoff)) {
+  if (missing(dspt) || is.null(dspt)) {
     # Return the entire ROC curve
     return(list(x = x, y = y))
   } else {
     # Return evaluation(s) of the ROC curve at the threshold(s)
-    ap <- approx(x = x, y = y, xout = cutoff, ties = "ordered")$y
-    if (sum(is.na(ap)) > 0) { warning("'cutoff' out of bound.") }
+    ap <- approx(x = x, y = y, xout = dspt, ties = "ordered")$y
+    if (sum(is.na(ap)) > 0) { warning("'dspt' out of bound.") }
     return(ap)
   }
 }
@@ -317,6 +314,24 @@ rsq <- function(mtdt) {
   ybar <- sum(mtdt$w * mtdt$y) / mtdt$sow
   sst <- sum(mtdt$w * (mtdt$y - ybar)^2)
   return(1 - mtdt$rss / sst)
+}
+
+
+# Find the best performance measures
+#
+# This function returns the best performance measure within a vector of
+# performance measures.
+#
+# @param pfms a vector of performance measures.
+# @param pfmc a character of the performance metric
+#
+# @author Waley W. J. Liang <\email{wliang10@gmail.com}>
+find_best_perf <- function(pfms, pfmc) {
+  if (pfmc[1] %in% c("dev", "mse", "mae")) {
+    return(list(best_perf = min(pfms)[1], best_idx = which.min(pfms)[1]))
+  } else if (pfmc[1] %in% c("acc", "ks", "auc", "roc", "rsq")) {
+    return(list(best_perf = max(pfms)[1], best_idx = which.max(pfms)[1]))
+  }
 }
 
 
